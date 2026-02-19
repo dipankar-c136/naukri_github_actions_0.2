@@ -1,0 +1,41 @@
+name: Naukri Automation Bot
+
+on:
+  schedule:
+    # Runs at 04:00 UTC (9:30 AM IST) every day
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Allows manual trigger button for testing
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run Automation Script
+        env:
+          # This maps the GitHub Secrets to the Java System.getenv() calls
+          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
+          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          # 👇 ADDED: These are required for OTP Bypass
+          GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        # Runs the main class directly using Maven exec plugin
+        run: |
+      #    mvn clean compile exec:java -Dexec.mainClass="com.automation.NaukriBot"
+          mvn test -Dsurefire.suiteXmlFiles=src/test/resources/testng.xml
+
+      - name: Upload Screenshots (Debug)
+        if: always() # Runs even if the previous step failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshots
+          path: "*.png"
