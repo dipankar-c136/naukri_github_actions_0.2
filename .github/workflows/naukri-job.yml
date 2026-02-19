@@ -2,7 +2,8 @@ name: Naukri Automation Bot
 
 on:
   schedule:
-    - cron: '0 4 * * *'
+    # Runs at 03:30 UTC, which is exactly 9:00 AM IST every day
+    - cron: '30 3 * * *'
   workflow_dispatch: # Allows you to click "Run workflow" manually
 
 jobs:
