@@ -20,7 +20,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      # Capture start time for duration calculation
+      - name: Record Start Time
+        id: start_time
+        run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Run Automation Tests
+        id: run_tests
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
@@ -29,9 +35,214 @@ jobs:
           CI: true
         run: mvn test -Dsurefire.suiteXmlFiles=src/test/resources/testng.xml
 
-      - name: Upload Screenshots on Failure
+      # Calculate duration
+      - name: Calculate Duration
+        if: always()
+        id: duration
+        run: |
+          end=$(date +%s)
+          start=${{ steps.start_time.outputs.start }}
+          elapsed=$((end - start))
+          mins=$((elapsed / 60))
+          secs=$((elapsed % 60))
+          echo "elapsed=${mins}m ${secs}s" >> $GITHUB_OUTPUT
+
+      # Get short commit message
+      - name: Get Commit Info
+        if: always()
+        id: commit_info
+        run: |
+          msg=$(git log -1 --pretty=%B | head -1)
+          echo "message=$msg" >> $GITHUB_OUTPUT
+          echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      # List all screenshots and reports for the email body
+      - name: List Artifacts
+        if: always()
+        id: artifacts_list
+        run: |
+          echo "screenshots<<EOF" >> $GITHUB_OUTPUT
+          ls -1 *.png 2>/dev/null || echo "No screenshots captured"
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload Screenshots & Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-screenshots
-          path: "*.png"
+          name: test-artifacts-${{ github.run_number }}
+          path: |
+            *.png
+            target/surefire-reports/
+            target/cucumber-reports/
+          retention-days: 30
+
+      # ============================================
+      # 📧 EMAIL NOTIFICATION ON SUCCESS (HTML)
+      # ============================================
+      - name: Send Success Email
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "✅ Naukri Bot SUCCESS - Resume Updated [Run #${{ github.run_number }}]"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Naukri Automation Bot <${{ secrets.GMAIL_USERNAME }}>
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; padding: 20px; color: #333; }
+                .container { max-width: 650px; margin: auto; background: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); overflow: hidden; }
+                .header { background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; padding: 25px; text-align: center; }
+                .header h1 { margin: 0; font-size: 24px; }
+                .badge { display: inline-block; padding: 5px 12px; background: rgba(255,255,255,0.25); border-radius: 20px; font-size: 12px; margin-top: 8px; }
+                .content { padding: 25px; }
+                table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 14px; }
+                th { background: #f8f9fa; color: #495057; width: 35%; }
+                .btn { display: inline-block; padding: 12px 24px; background: #007bff; color: white !important; text-decoration: none; border-radius: 5px; margin: 8px 5px; font-weight: 500; }
+                .btn-success { background: #28a745; }
+                .footer { padding: 20px; background: #f8f9fa; text-align: center; font-size: 12px; color: #6c757d; }
+                .status-ok { color: #28a745; font-weight: bold; }
+                .info-box { background: #e7f3ff; border-left: 4px solid #007bff; padding: 12px; margin: 15px 0; border-radius: 4px; font-size: 13px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🎉 Automation Successful</h1>
+                  <div class="badge">Run #${{ github.run_number }} • ${{ steps.duration.outputs.elapsed }}</div>
+                </div>
+                <div class="content">
+                  <p>Hello 👋,</p>
+                  <p>Your <b>Naukri Automation Bot</b> has completed successfully! Your resume has been re-uploaded and profile is refreshed. ✅</p>
+            
+                  <h3>📊 Execution Details</h3>
+                  <table>
+                    <tr><th>Status</th><td><span class="status-ok">✅ SUCCESS</span></td></tr>
+                    <tr><th>Workflow</th><td>${{ github.workflow }}</td></tr>
+                    <tr><th>Run Number</th><td>#${{ github.run_number }}</td></tr>
+                    <tr><th>Duration</th><td>${{ steps.duration.outputs.elapsed }}</td></tr>
+                    <tr><th>Triggered By</th><td>${{ github.event_name }}</td></tr>
+                    <tr><th>Repository</th><td>${{ github.repository }}</td></tr>
+                    <tr><th>Branch</th><td>${{ github.ref_name }}</td></tr>
+                    <tr><th>Commit</th><td><code>${{ steps.commit_info.outputs.short_sha }}</code> - ${{ steps.commit_info.outputs.message }}</td></tr>
+                  </table>
+
+                  <div class="info-box">
+                    📸 <b>Screenshots & Reports</b> are attached to this email and also available as workflow artifacts (retained for 30 days).
+                  </div>
+
+                  <div style="text-align: center; margin: 20px 0;">
+                    <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" class="btn btn-success">🔗 View Full Logs</a>
+                    <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts" class="btn">📦 Download Artifacts</a>
+                  </div>
+                </div>
+                <div class="footer">
+                  🤖 Sent by <b>Naukri Automation Bot</b><br>
+                  Powered by GitHub Actions • ${{ github.repository }}
+                </div>
+              </div>
+            </body>
+            </html>
+          attachments: "*.png,target/surefire-reports/emailable-report.html,target/cucumber-reports/*.html"
+          ignore_cert: true
+          convert_markdown: false
+          priority: normal
+
+      # ============================================
+      # 🚨 EMAIL NOTIFICATION ON FAILURE (HTML)
+      # ============================================
+      - name: Send Failure Email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "❌ Naukri Bot FAILED - Action Required [Run #${{ github.run_number }}]"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Naukri Automation Bot <${{ secrets.GMAIL_USERNAME }}>
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f4f6f8; padding: 20px; color: #333; }
+                .container { max-width: 650px; margin: auto; background: #ffffff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); overflow: hidden; }
+                .header { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 25px; text-align: center; }
+                .header h1 { margin: 0; font-size: 24px; }
+                .badge { display: inline-block; padding: 5px 12px; background: rgba(255,255,255,0.25); border-radius: 20px; font-size: 12px; margin-top: 8px; }
+                .content { padding: 25px; }
+                table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+                th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e0e0e0; font-size: 14px; }
+                th { background: #f8f9fa; color: #495057; width: 35%; }
+                .btn { display: inline-block; padding: 12px 24px; background: #dc3545; color: white !important; text-decoration: none; border-radius: 5px; margin: 8px 5px; font-weight: 500; }
+                .btn-secondary { background: #6c757d; }
+                .footer { padding: 20px; background: #f8f9fa; text-align: center; font-size: 12px; color: #6c757d; }
+                .status-fail { color: #dc3545; font-weight: bold; }
+                .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0; border-radius: 4px; font-size: 13px; }
+                .action-list { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px; margin: 15px 0; }
+                .action-list ul { margin: 8px 0; padding-left: 20px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>⚠️ Automation Failed</h1>
+                  <div class="badge">Run #${{ github.run_number }} • ${{ steps.duration.outputs.elapsed }}</div>
+                </div>
+                <div class="content">
+                  <p>Hello 👋,</p>
+                  <p>Your <b>Naukri Automation Bot</b> has <span class="status-fail">FAILED</span> during execution. Immediate investigation is required. 🚨</p>
+
+                  <h3>📊 Execution Details</h3>
+                  <table>
+                    <tr><th>Status</th><td><span class="status-fail">❌ FAILED</span></td></tr>
+                    <tr><th>Workflow</th><td>${{ github.workflow }}</td></tr>
+                    <tr><th>Run Number</th><td>#${{ github.run_number }}</td></tr>
+                    <tr><th>Duration</th><td>${{ steps.duration.outputs.elapsed }}</td></tr>
+                    <tr><th>Triggered By</th><td>${{ github.event_name }}</td></tr>
+                    <tr><th>Repository</th><td>${{ github.repository }}</td></tr>
+                    <tr><th>Branch</th><td>${{ github.ref_name }}</td></tr>
+                    <tr><th>Commit</th><td><code>${{ steps.commit_info.outputs.short_sha }}</code> - ${{ steps.commit_info.outputs.message }}</td></tr>
+                  </table>
+
+                  <div class="warning-box">
+                    📸 <b>Debug screenshots and test reports</b> are attached below to help identify the failure point.
+                  </div>
+
+                  <div class="action-list">
+                    <b>🔧 Recommended Actions:</b>
+                    <ul>
+                      <li>Check the attached screenshots for UI state at failure point</li>
+                      <li>Review the Cucumber/TestNG report for detailed step traces</li>
+                      <li>Verify if Naukri.com changed their DOM structure or added CAPTCHA</li>
+                      <li>Check if OTP email delivery was delayed beyond 60s timeout</li>
+                      <li>Confirm GitHub Secrets (NAUKRI_EMAIL, GMAIL_APP_PASSWORD) are still valid</li>
+                    </ul>
+                  </div>
+
+                  <div style="text-align: center; margin: 20px 0;">
+                    <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" class="btn">🔗 View Failure Logs</a>
+                    <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts" class="btn btn-secondary">📦 Download Artifacts</a>
+                  </div>
+                </div>
+                <div class="footer">
+                  🤖 Sent by <b>Naukri Automation Bot</b><br>
+                  Powered by GitHub Actions • ${{ github.repository }}
+                </div>
+              </div>
+            </body>
+            </html>
+          attachments: "*.png,target/surefire-reports/emailable-report.html,target/cucumber-reports/*.html"
+          ignore_cert: true
+          convert_markdown: false
+          priority: high
