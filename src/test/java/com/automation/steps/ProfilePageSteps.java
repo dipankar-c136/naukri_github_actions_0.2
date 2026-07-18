@@ -26,9 +26,17 @@ public class ProfilePageSteps {
         profilePage.deleteResume();
     }
 
+    /*
     @And("I upload my resume again")
     public void iUploadMyResumeAgain() throws Throwable {
         profilePage.uploadResume("CV_Dipankar_Chakraborty_2026.pdf");
+    }
+    */
+    // NEW: fetch the resume file for the current userKey from config.properties
+    @And("I upload my resume again for {string}")
+    public void iUploadMyResumeAgain(String userKey) throws Throwable {
+        String resumeFile = ConfigReader.get(userKey + "_RESUME");
+        profilePage.uploadResume(resumeFile);
     }
 
     @Then("I should see a success message")
