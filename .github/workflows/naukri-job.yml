@@ -28,10 +28,20 @@ jobs:
       - name: Run Automation Tests
         id: run_tests
         env:
-          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
-          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
-          GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          #NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
+          #NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          #GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
+          #GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          USER1_EMAIL: ${{ secrets.USER1_EMAIL }}
+          USER1_PASSWORD: ${{ secrets.USER1_PASSWORD }}
+          USER1_RESUME: ${{ secrets.USER1_RESUME }}
+          USER1_GMAIL_USERNAME: ${{ secrets.USER1_GMAIL_USERNAME }}
+          USER1_GMAIL_APP_PASSWORD: ${{ secrets.USER1_GMAIL_APP_PASSWORD }}
+          USER2_EMAIL: ${{ secrets.USER2_EMAIL }}
+          USER2_PASSWORD: ${{ secrets.USER2_PASSWORD }}
+          USER2_RESUME: ${{ secrets.USER2_RESUME }}
+          USER2_GMAIL_USERNAME: ${{ secrets.USER2_GMAIL_USERNAME }}
+          USER2_GMAIL_APP_PASSWORD: ${{ secrets.USER2_GMAIL_APP_PASSWORD }}
           CI: true
         run: mvn test -Dsurefire.suiteXmlFiles=src/test/resources/testng.xml
 

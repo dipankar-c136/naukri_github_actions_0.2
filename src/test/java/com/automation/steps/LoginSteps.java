@@ -29,6 +29,11 @@ public class LoginSteps {
     public void i_enter_valid_credentials(String userKey) {
         String u = ConfigReader.get(userKey + "_EMAIL");
         String p = ConfigReader.get(userKey + "_PASSWORD");
+        if (u == null || p == null) {
+            throw new IllegalStateException(
+                    "Missing credentials for " + userKey +
+                            ". Check config.properties (local) or GitHub Secrets (CI).");
+        }
         loginPage.enterCredentials(u, p);
     }
 
