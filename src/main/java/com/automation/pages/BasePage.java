@@ -51,4 +51,45 @@ public class BasePage {
         ((org.openqa.selenium.JavascriptExecutor) driver).executeScript("arguments[0].click();", element);
         logger.info("🖱️ Clicked on element using JS: " + locator.toString());
     }
+
+    /**
+     * Short, non-throwing presence probe. Returns true if the element is
+     * present in the DOM within the timeout, false otherwise. Handy for
+     * cheap branching without blowing the default 20s wait budget.
+     */
+    public boolean isElementPresent(WebDriver driver, org.openqa.selenium.By locator, int timeoutSeconds) {
+        try {
+            new org.openqa.selenium.support.ui.WebDriverWait(driver, java.time.Duration.ofSeconds(timeoutSeconds))
+                    .until(org.openqa.selenium.support.ui.ExpectedConditions.presenceOfElementLocated(locator));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Non-throwing visibility probe. Returns true if the element is
+     * visible within the timeout, false otherwise.
+     */
+    public boolean isElementVisible(WebDriver driver, org.openqa.selenium.By locator, int timeoutSeconds) {
+        try {
+            new org.openqa.selenium.support.ui.WebDriverWait(driver, java.time.Duration.ofSeconds(timeoutSeconds))
+                    .until(org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated(locator));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Uninterruptable-safe sleep helper. Prefer explicit waits over this;
+     * only use for tiny settle windows where a wait-condition doesn't apply.
+     */
+    protected void sleepQuietly(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+    }
 }

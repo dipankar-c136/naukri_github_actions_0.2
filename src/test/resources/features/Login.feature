@@ -31,6 +31,10 @@ Feature: Naukri Resume Re-upload with Auto-OTP Bypass
     When I remove the already uploaded resume
     And I upload my resume again for "<userKey>"
     Then I should see a success message
+    When I navigate back to the homepage
+    And I click on the View all button to view all the Early access roles for "<userKey>"
+    And I list down all the Early access roles available for "<userKey>"
+    And I click on the Share interest for each of the Early access roles available for "<userKey>"
 
     Examples:
       | userKey |
