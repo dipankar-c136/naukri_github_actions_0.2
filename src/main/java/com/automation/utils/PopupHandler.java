@@ -64,7 +64,19 @@ public final class PopupHandler {
             new PopupSpec(
                     "Naukri chatbot overlay",
                     ".chatbot_Overlay.show",
-                    ".chatbot_Overlay.show")
+                    ".chatbot_Overlay.show"),
+
+            // 5. Naukri NPS ("How likely are you to recommend...") survey pop-up.
+            //    Rendered by the ni-desktop-nps-wdgt widget. Appears post-login on
+            //    the dashboard and can also surface mid-flow on the homepage /
+            //    profile pages. The outer class is CSS-module-namespaced
+            //    (e.g. npsf__captureNpsPopup), so we match on the stable
+            //    'captureNpsPopup' substring to survive hash/prefix changes. The
+            //    close control is an <img alt="cross-icon"> inside the container.
+            new PopupSpec(
+                    "Naukri NPS survey",
+                    "[class*='captureNpsPopup']",
+                    "[class*='captureNpsPopup'] img[alt='cross-icon']")
     );
 
     /**
